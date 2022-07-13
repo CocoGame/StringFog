@@ -55,13 +55,17 @@ public final class StringFogClassInjector {
         this.mMappingPrinter = mappingPrinter;
     }
 
-    public void doFog2Class(File fileIn, File fileOut) throws IOException {
+    public void doFog2Class(File dirIn, File fileIn, File fileOut) throws IOException {
         InputStream is = null;
         OutputStream os = null;
         try {
             is = new BufferedInputStream(new FileInputStream(fileIn));
             os = new BufferedOutputStream(new FileOutputStream(fileOut));
-            processClass(is, os);
+
+            String absolutePath = fileIn.getAbsolutePath();
+            String dirPath = dirIn.getAbsolutePath();
+            String classPath = absolutePath.substring(dirPath.length() + 1);
+            processClass(is, os, classPath);
         } finally {
             closeQuietly(os);
             closeQuietly(is);
@@ -89,7 +93,7 @@ public final class StringFogClassInjector {
                     zos.putNextEntry(entryOut);
                     if (!entryIn.isDirectory()) {
                         if (entryName.endsWith(".class") && !shouldExclude) {
-                            processClass(zis, zos);
+                            processClass(zis, zos, entryName);
                         } else {
                             copy(zis, zos);
                         }
@@ -104,23 +108,28 @@ public final class StringFogClassInjector {
         }
     }
 
-    private void processClass(InputStream classIn, OutputStream classOut) throws IOException {
-        ClassReader cr = new ClassReader(classIn);
-        // skip module-info class, fixed #38
-        if ("module-info".equals(cr.getClassName())) {
-            byte[] buffer = new byte[1024];
-            int read;
-            while ((read = classIn.read(buffer)) >= 0) {
-                classOut.write(buffer, 0, read);
-            }
-        } else {
-            ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
-            ClassVisitor cv = ClassVisitorFactory.create(mStringFogImpl, mMappingPrinter, mFogPackages,
-                    mKeyGenerator, mFogClassName, cr.getClassName() , cw);
-            cr.accept(cv, 0);
-            classOut.write(cw.toByteArray());
-            classOut.flush();
+    private void processClass(InputStream classIn, OutputStream classOut, String classPath) throws IOException {
+        final String className =
+                classPath.substring(0, classPath.length() - 6)
+                        .replace('/', '.')
+                        .replace('\\', '.');
+
+        if (className.equals("module-info")
+                || className.endsWith(".module-info")
+                || className.endsWith(".R")
+                || className.endsWith(".BuildConfig")
+                || className.contains(".R$")) {
+            copy(classIn, classOut);
+            return;
         }
+
+        ClassReader cr = new ClassReader(classIn);
+        ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        ClassVisitor cv = ClassVisitorFactory.create(mStringFogImpl, mMappingPrinter, mFogPackages,
+                mKeyGenerator, mFogClassName, cr.getClassName() , cw);
+        cr.accept(cv, 0);
+        classOut.write(cw.toByteArray());
+        classOut.flush();
     }
 
     private boolean shouldExcludeJar(File jarIn) throws IOException {

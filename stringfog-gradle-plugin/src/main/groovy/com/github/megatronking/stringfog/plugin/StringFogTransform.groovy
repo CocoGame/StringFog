@@ -161,7 +161,7 @@ abstract class StringFogTransform extends Transform {
                                         return // continue.
                                     }
                                     if (mInjector != null && fileInput.getName().endsWith('.class')) {
-                                        mInjector.doFog2Class(fileInput, fileOutput)
+                                        mInjector.doFog2Class(dirInput.file, fileInput, fileOutput)
                                     } else {
                                         Files.copy(fileInput, fileOutput)
                                     }
@@ -182,7 +182,7 @@ abstract class StringFogTransform extends Transform {
                             File fileOutput = new File(fileInput.getAbsolutePath().replace(dirInput.file.getAbsolutePath(), dirOutput.getAbsolutePath()))
                             FileUtils.mkdirs(fileOutput.parentFile)
                             if (mInjector != null && fileInput.getName().endsWith('.class')) {
-                                mInjector.doFog2Class(fileInput, fileOutput)
+                                mInjector.doFog2Class(dirInput.file, fileInput, fileOutput)
                             } else {
                                 Files.copy(fileInput, fileOutput)
                             }
